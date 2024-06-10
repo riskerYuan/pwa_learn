@@ -1,24 +1,44 @@
-// 注册 Service worker
-if ('serviceWorker' in window.navigator) {
-    const registerServiceWorker = async () => {
-        if ("serviceWorker" in navigator) {
-            try {
-                const registration = await navigator.serviceWorker.register("/sw.js", {
-                    scope: "/",
-                });
-                if (registration.installing) {
-                    console.log("正在安装 Service worker");
-                } else if (registration.waiting) {
-                    console.log("已安装 Service worker installed");
-                } else if (registration.active) {
-                    console.log("激活 Service worker");
+const CACHE_NAME = 'my-pwa-cache-v1';
+const urlsToCache = [
+    '/',
+    '/index.html',
+    '/styles.css',
+    '/app.js',
+    '/images/icon-192x192.png',
+    '/images/icon-512x512.png'
+];
+
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                console.log('Opened cache');
+                return cache.addAll(urlsToCache);
+            })
+    );
+});
+
+self.addEventListener('fetch', event => {
+    event.respondWith(
+        caches.match(event.request)
+            .then(response => {
+                if (response) {
+                    return response;
                 }
-            } catch (error) {
-                console.error(`注册失败：${error}`);
-            }
-        }
-    };
+                return fetch(event.request);
+            })
+    );
+});
 
-    registerServiceWorker();
-}
-
+self.addEventListener('activate', event => {
+    const cacheWhitelist = [CACHE_NAME];
+    event.waitUntil(
+        caches.keys().then(keyList => {
+            return Promise.all(keyList.map(key => {
+                if (cacheWhitelist.indexOf(key) === -1) {
+                    return caches.delete(key);
+                }
+            }));
+        })
+    );
+});
